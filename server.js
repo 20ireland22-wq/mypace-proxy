@@ -7,8 +7,8 @@ const OPENAI_API_KEY   = process.env.OPENAI_API_KEY;
 const APP_SECRET_TOKEN = process.env.APP_SECRET_TOKEN;
 const PORT             = process.env.PORT || 3000;
 
-if (!OPENAI_API_KEY)   { console.error('OPENAI_API_KEY env var not set'); process.exit(1); }
-if (!APP_SECRET_TOKEN) { console.error('APP_SECRET_TOKEN env var not set'); process.exit(1); }
+if (!OPENAI_API_KEY)   console.warn('WARNING: OPENAI_API_KEY env var not set — proxy requests will fail');
+if (!APP_SECRET_TOKEN) console.warn('WARNING: APP_SECRET_TOKEN env var not set — all requests will be rejected');
 
 const app = express();
 
@@ -27,10 +27,13 @@ function checkToken(req, res, next) {
 
 function proxyTo(openaiPath) {
   return (req, res) => {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) return res.status(500).json({ error: 'Server misconfigured: OPENAI_API_KEY not set' });
+
     const headers = { ...req.headers };
     delete headers['x-app-token'];
     headers['host']          = 'api.openai.com';
-    headers['authorization'] = `Bearer ${OPENAI_API_KEY}`;
+    headers['authorization'] = `Bearer ${key}`;
 
     const proxyReq = https.request(
       { hostname: 'api.openai.com', path: openaiPath, method: 'POST', headers },
